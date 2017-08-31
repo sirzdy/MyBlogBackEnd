@@ -1,4 +1,7 @@
 var express = require('express');
+var app = express();
+var server = require('http').Server(app);
+var io = require('socket.io')(server);
 var fs = require('fs');
 var util = require('util');
 var path = require('path');
@@ -7,9 +10,8 @@ var cookieParser = require('cookie-parser');
 var session = require('express-session');
 var parseurl = require('parseurl');
 var eventproxy = require('eventproxy');
-var app = express();
 var ObjectId = require('mongodb').ObjectId;
-
+/*自己的*/
 var Utils = require('./utils');
 var mongo = require('./mongo');
 var mail = require('./mail');
@@ -28,37 +30,8 @@ app.use(bodyParser.json()); // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
 
-// app.use(function(req, res, next) {
-//     var views = req.session.views
-//     // console.log(req.sessionID);
-//     if (!views) {
-//         views = req.session.views = {}
-//     }
-//     // get the url pathname 
-//     var pathname = parseurl(req).pathname
-//     // count the views 
-//     views[pathname] = (views[pathname] || 0) + 1
-//     console.log(pathname,views[pathname]);
-//     next()
-// })
 
-
-// app.use(cookieParser());
-// app.all('/#/index', function(req, res) {
-//     // 检查 session 中的 isVisit 字段是否存在
-//     // 如果存在则增加一次，否则为 session 设置 isVisit 字段，并初始化为 1。
-//     console.log(req.cookies);
-//     if (req.cookies.isVisit) {
-//         req.cookies.isVisit++;
-//         console.log('<p>第 ' + req.cookies.isVisit + '次来此页面</p>');
-//     } else {
-//         req.cookies.isVisit = 1;
-//         console.log("欢迎第一次来这里");
-//         console.log("Cookies: ", req.cookies); //打印cookie
-//     }
-// });
-
-
+/* ---------------------------------------------- start ---------------------------------------------- */
 //系统异常
 var callerr = function(res, errcode) {
   //未登录或登录超时
@@ -84,7 +57,6 @@ var callerr = function(res, errcode) {
 };
 //校验是否登录
 app.all('/check', function(req, res) {
-
   if (req.session.user) {
     mongo.query("users", { "_id": ObjectId(req.session.user._id) }, function(result) {
       if (result.length > 0) {
@@ -863,45 +835,120 @@ app.post("/getReply", function(req, res) {
   });
 });
 /* 评论相关 end */
+/* ---------------------------------------------- end ---------------------------------------------- */
 
-var server = app.listen(3333, function() {
+/* ---------------------------------------------- socket io start ---------------------------------------------- */
+
+
+
+
+// var users = [];//所有人
+var chatList = []; //所有sockets，禁止多处登录
+var roomList = [{ name: '官方聊天室' }];
+var rooms = {}; //用户 list 
+var speakers = []; // chat  列表
+// var chat=io.of('chat'); 
+var chat = io;
+chat.on('connection', function(socket) {
+  console.log('connection', socket.id);
+
+  function initSockets() {
+    var allSockets = io.sockets.sockets;
+    chatList = [];
+    for (var i in allSockets) {
+      let info = allSockets[i].info;
+      chatList.push(info);
+    }
+  }
+
+  function getRoomUsers(room) {
+    var allSockets = io.sockets.sockets;
+    var res = [];
+    for (var i in allSockets) {
+      if (allSockets[i].rooms[room] == room) {
+        res.push(allSockets[i].info);
+      }
+    }
+    return res;
+  }
+
+  socket.on('chat info', function(data) {
+    socket.info = data;
+    socket.info.id = socket.id;
+    initSockets();
+    io.emit('log in', { logInInfo: socket.info, chatList: chatList, roomList: roomList });
+  });
+  // socket.on('log in', function() {
+  //   io.emit('log in', { logInInfo: socket.info, chatList: chatList, roomList: roomList });
+  // })
+  socket.on('chat list', function() {
+    initSockets();
+    io.emit('chat list', chatList);
+  });
+  socket.on('room list', function() {
+    initSockets();
+    io.emit('room list', roomList);
+  });
+  socket.on('add room', function(addRoomName) {
+    if (addRoomName == '') {
+      return;
+    }
+    for (var i in roomList) {
+      if (roomList[i].name == addRoomName) {
+        socket.emit('room exist', addRoomName);
+        return;
+      }
+    }
+    roomList.push({ name: addRoomName, creator: socket.info._id });
+    io.emit('room list', roomList);
+  });
+  socket.on('remove room', function(removeRoomName) {
+    for (var i in roomList) {
+      if (roomList[i].name == removeRoomName && roomList[i].creator == socket.info._id) {
+        roomList.splice(i, 1);
+      }
+    }
+    io.emit('room list', roomList);
+  });
+  socket.on('enter room', function(room) {
+    socket.join(room, function() {
+      io.to(room).emit('enter room', { user: socket.info, room: room, time: new Date(), roomUsers: getRoomUsers(room) });
+    });
+  });
+  socket.on('leave room', function(room) {
+    socket.leave(room, function() {
+      io.to(room).emit('leave room', { user: socket.info, room: room, time: new Date(), roomUsers: getRoomUsers(room) });
+    });
+  });
+  socket.on('chat room send', function(data) {
+    var mes = data;
+    mes.time = new Date();
+    io.to(data.room).emit('chat receive', mes);
+  });
+  socket.on('chat person send', function(data) {
+    var mes = data;
+    mes.time = new Date();
+    var allSockets = io.sockets.sockets;
+    socket.emit('chat receive self', mes);
+    for (var i in allSockets) {
+      if (data.to == allSockets[i].info._id) {
+        allSockets[i].emit('chat receive', mes);
+      }
+    }
+  });
+  socket.on('disconnect', function(data) {
+    initSockets();
+    io.emit('chat list', chatList);
+    console.log('disconnect');
+  });
+  setTimeout(function() {
+    socket.emit('chat info', chatList);
+  }, 100);
+});
+// /* ---------------------------------------------- socket io end ---------------------------------------------- */
+
+server.listen(3333, function() {
   var host = server.address().address;
   var port = server.address().port;
   console.log('App listening at http://%s:%s', host, port);
 });
-
-// insert
-// mongo.insert("users",{'name':'zdy'},function(result){
-//     console.log(result);
-// })
-// update
-// mongo.update("users",{'name':'zdy'},{$set:{'name':'myy'}},function(result){
-//     console.log(result);
-// })
-// query
-// mongo.query("users",{'name':'myy'},function(result){
-//     console.log(result);
-// })
-// delete
-// mongo.delete("users",{'name':'myy'},function(result){
-//     console.log(result);
-// })
-
-// var birds = require('./birds');
-// app.use('/birds', birds);
-// app.use('/about',express.static(path.join(__dirname,'about')));
-// app.get('/', function (req, res) {
-//   res.sendFile('index.html');
-// });
-// 网站首页接受 POST 请求
-// app.post('/', function (req, res) {
-//   res.send('Got a POST request');
-// });
-
-// /user 节点接受 PUT 请求
-
-
-// // /user 节点接受 DELETE 请求
-// app.delete('/user', function (req, res) {
-//   res.send('Got a DELETE request at /user');
-// });
