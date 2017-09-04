@@ -35,8 +35,6 @@ var mongo = {
   update: function(col, whereStr, updateStr, callback, callerr) {
     MongoClient.connect(DB_CONN_STR, function(err, db) {
       var collection = db.collection(col);
-      console.log(whereStr)
-      console.log(updateStr)
       collection.updateOne(whereStr, updateStr, function(err, result) {
         if (err) {
           console.log('Error:' + err);
@@ -51,8 +49,6 @@ var mongo = {
   updateMany: function(col, whereStr, updateStr, callback, callerr) {
     MongoClient.connect(DB_CONN_STR, function(err, db) {
       var collection = db.collection(col);
-      console.log(whereStr)
-      console.log(updateStr)
       collection.updateMany(whereStr, updateStr, function(err, result) {
         if (err) {
           console.log('Error:' + err);
@@ -81,7 +77,6 @@ var mongo = {
   queryPart: function(col, whereStr, part, order, callback, callerr) {
     var page = part.page;
     var size = part.size;
-    console.log(whereStr);
 
     function getPart(result) {
       var res = {};
@@ -108,39 +103,10 @@ var mongo = {
         db.close();
       });
     });
-    // if (Utils.isEmptyObject(whereStr)) {
-    //   console.log('Empty')
-    //   MongoClient.connect(DB_CONN_STR, function(err, db) {
-    //     var collection = db.collection(col);
-    //     collection.find(whereStr).skip((page - 1) * size).limit(size).toArray(function(err, result) {
-    //       if (err) {
-    //         console.log('Error:' + err);
-    //         callerr && callerr();
-    //         return;
-    //       }
-    //       callback(getPart(result));
-    //       db.close();
-    //     });
-    //   });
-    // } else {
-    //   MongoClient.connect(DB_CONN_STR, function(err, db) {
-    //     var collection = db.collection(col);
-    //     collection.find(whereStr).toArray(function(err, result) {
-    //       if (err) {
-    //         console.log('Error:' + err);
-    //         callerr && callerr();
-    //         return;
-    //       }
-    //       callback(getPart(result));
-    //       db.close();
-    //     });
-    //   })
-    // }
   },
   queryPartFull: function(col, whereStr, part, order, callback, callerr) {
     var page = part.page;
     var size = part.size;
-    console.log(whereStr);
     MongoClient.connect(DB_CONN_STR, function(err, db) {
       var collection = db.collection(col);
       collection.find(whereStr).count(function(err, count) {
