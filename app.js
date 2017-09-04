@@ -161,7 +161,6 @@ app.post('/signup', function(req, res) {
       /* users start */
       mongo.insert("users", { email: email, nickname: nickname }, function(result) {
         if (result.result.ok) {
-          console.log(result.result);
           /* pwd start*/
           mongo.insert("pwds", { email: email, password: password }, function(result) {
             if (result.result.ok) {
@@ -356,6 +355,36 @@ app.post('/like', function(req, res) {
           mongo.query("posts", { "_id": ObjectId(req.body._id) }, function(result) {
             if (result.length > 0) {
               res.send({ 'recode': '0000', 'msg': '喜欢成功', 'like': result[0].like });
+
+              //推送喜欢消息
+              var to = result[0].author;
+              mongo.query("users", { "_id": ObjectId(likeid) }, function(r) { //查询发送消息的人信息
+                var mes = {
+                  msg: '<b>【' + r[0].nickname + '】</b>' + '喜欢了你的文章<b>《' + result[0].title + '》</b>',
+                  postid: req.body._id
+                };
+                var insertMsg = {
+                  to: to,
+                  from: likeid,
+                  postid: mes.postid,
+                  msg: mes.msg,
+                  hasRead: false,
+                  time: new Date()
+                }
+                mongo.insert("msgs", insertMsg, function(result) {
+                  if (result.result.ok) {
+                    mes._id = result.ops[0]._id;
+                    sendMsg(to, mes);
+                    return;
+                  } else {
+                    callerr(res, 4100);
+                    return;
+                  }
+                }, function() {
+                  callerr(res, 4200);
+                  return;
+                });
+              })
               return;
             } else {
               res.send({ 'recode': '5050', 'msg': '获取喜欢数量失败' });
@@ -598,13 +627,11 @@ app.post('/search', function(req, res) {
         queryCondition.updateTime.$lte = new Date(query.updateTimeEnd)
       }
     }
-    console.log(queryCondition);
     mongo.queryPart("posts", queryCondition, { size: size, page: page }, order, function(result) {
       if (result.list.length > 0) {
         var list = result.list;
         var ep = new eventproxy;
         ep.after('get data', list.length * 2, function() {
-          console.log("over");
           res.send({ 'recode': '0000', 'msg': '查询成功', 'res': result });
         })
         for (var i in list) {
@@ -693,17 +720,68 @@ app.post('/comment', function(req, res) {
     content: req.body.content,
     time: new Date()
   }
-  mongo.insert("comment", param, function(result) {
-    if (result.result.ok && result.result.n) {
-      console.log("评论成功");
-      res.send({ 'recode': '0000', 'msg': '评论成功', 'comment': result.ops[0] });
-      return;
-    } else {
-      callerr(res, 4100);
-      return;
-    }
-  }, function() {
-    callerr(res, 4200);
+  mongo.query('comment', { postid: req.body.postid }, function(result) {
+    param.floor = result.length ? result.length + 1 : 1;
+    mongo.insert("comment", param, function(result) {
+      if (result.result.ok && result.result.n) {
+        console.log("评论成功");
+        res.send({ 'recode': '0000', 'msg': '评论成功', 'comment': result.ops[0] });
+
+        var comment = result.ops[0];
+        var ep = new eventproxy;
+        var post = {},
+          commentator = {},
+          to;
+        ep.after('get data', 2, function() {
+          var mes = {
+            msg: '<b>【' + commentator.nickname + '】</b>' + '评论了你的文章<b>《' + post.title + '》</b>:' + comment.content,
+            postid: comment.postid,
+            commentid: comment._id,
+            floor: comment.floor
+          };
+          var insertMsg = {
+            to: to,
+            from: userid,
+            postid: mes.postid,
+            msg: mes.msg,
+            commentid: comment._id,
+            hasRead: false,
+            time: comment.time,
+            floor: comment.floor
+          };
+          //存储数据库
+          mongo.insert("msgs", insertMsg, function(result) {
+            if (result.result.ok) {
+              mes._id = result.ops[0]._id;
+              // 推送评论消息
+              sendMsg(to, mes);
+              return;
+            } else {
+              callerr(res, 4100);
+              return;
+            }
+          }, function() {
+            callerr(res, 4200);
+            return;
+          });
+        })
+        mongo.query("posts", { "_id": ObjectId(req.body.postid) }, function(result) { //查询收取消息的人的_id
+          to = result[0].author;
+          post = result[0];
+          ep.emit('get data');
+        })
+        mongo.query("users", { "_id": ObjectId(userid) }, function(result) { //查询发送消息的人信息
+          commentator = result[0];
+          ep.emit('get data');
+        })
+        return;
+      } else {
+        callerr(res, 4100);
+        return;
+      }
+    }, function() {
+      callerr(res, 4200);
+    })
   })
 });
 /*回复*/
@@ -719,21 +797,211 @@ app.post('/reply', function(req, res) {
     postid: req.body.postid,
     commentid: req.body.commentid,
     content: req.body.content,
+    atid: req.body.atid,
     time: new Date()
   }
-  mongo.insert("reply", param, function(result) {
+  mongo.query('reply', { postid: req.body.postid }, function(result) {
+    param.floor = result.length ? result.length + 1 : 1;
+    mongo.insert("reply", param, function(result) {
       if (result.result.ok && result.result.n) {
         console.log("回复成功");
         res.send({ 'recode': '0000', 'msg': '回复成功', 'reply': result.ops[0] });
+
+        var reply = result.ops[0];
+        var ep = new eventproxy;
+        var post = {},
+          commentator = {},
+          replier = {};
+        ep.after('get data', 3, function() {
+          { //作者的消息
+            let to = post.author;
+            let mes = {
+              msg: '<b>【' + replier.nickname + '】</b>' + '回复了你的文章<b>《' + post.title + '》</b>的评论:' + reply.content,
+              postid: comment.postid,
+              // commentid: comment._id,
+              replyid: reply._id,
+              floor: comment.floor,
+              flr: reply.floor
+            };
+            let insertMsg = {
+              to: to,
+              from: userid,
+              postid: mes.postid,
+              msg: mes.msg,
+              // commentid: comment._id,
+              replyid: reply._id,
+              hasRead: false,
+              time: reply.time,
+              floor: comment.floor,
+              flr: reply.floor
+            };
+            //存储数据库
+            mongo.insert("msgs", insertMsg, function(result) {
+              if (result.result.ok) {
+                mes._id = result.ops[0]._id;
+                // 推送评论消息
+                sendMsg(to, mes);
+                return;
+              } else {
+                callerr(res, 4100);
+                return;
+              }
+            }, function() {
+              callerr(res, 4200);
+              return;
+            });
+          }
+          if (comment.userid != post.author) { //评论者的消息
+            let to = comment.userid;
+            let mes = {
+              msg: '<b>【' + replier.nickname + '】</b>' + '回复了文章<b>《' + post.title + '》</b>下你的评论:' + reply.content,
+              postid: comment.postid,
+              // commentid: comment._id,
+              replyid: reply._id,
+              floor: comment.floor,
+              flr: reply.floor
+            };
+            let insertMsg = {
+              to: to,
+              from: userid,
+              postid: mes.postid,
+              msg: mes.msg,
+              // commentid: comment._id,
+              replyid: reply._id,
+              hasRead: false,
+              time: reply.time,
+              flr: comment.floor,
+              floor: reply.floor
+            };
+            //存储数据库
+            mongo.insert("msgs", insertMsg, function(result) {
+              if (result.result.ok) {
+                mes._id = result.ops[0]._id;
+                // 推送评论消息
+                sendMsg(to, mes);
+                return;
+              } else {
+                callerr(res, 4100);
+                return;
+              }
+            }, function() {
+              callerr(res, 4200);
+              return;
+            });
+          }
+          if (req.body.atid && req.body.atid != post.author && req.body.atid != comment.userid) { // @
+            let to = req.body.atid;
+            let mes = {
+              msg: '<b>【' + replier.nickname + '】</b>' + '回复了文章<b>《' + post.title + '》</b>的评论下你的回复:' + reply.content,
+              postid: comment.postid,
+              // commentid: comment._id,
+              replyid: reply._id,
+              floor: comment.floor,
+              flr: reply.floor
+            };
+            let insertMsg = {
+              to: to,
+              from: userid,
+              postid: mes.postid,
+              msg: mes.msg,
+              // commentid: comment._id,
+              replyid: reply._id,
+              hasRead: false,
+              time: reply.time,
+              floor: comment.floor,
+              flr: reply.floor
+            };
+            //存储数据库
+            mongo.insert("msgs", insertMsg, function(result) {
+              if (result.result.ok) {
+                mes._id = result.ops[0]._id;
+                // 推送评论消息
+                sendMsg(to, mes);
+                return;
+              } else {
+                callerr(res, 4100);
+                return;
+              }
+            }, function() {
+              callerr(res, 4200);
+              return;
+            });
+          }
+        })
+        mongo.query("posts", { "_id": ObjectId(req.body.postid) }, function(result) { //查询作者与文章
+          post = result[0];
+          ep.emit('get data');
+        })
+        mongo.query("comment", { "_id": ObjectId(req.body.commentid) }, function(result) { //查询评论的人信息
+          comment = result[0];
+          ep.emit('get data');
+        })
+
+        mongo.query("users", { "_id": ObjectId(userid) }, function(result) { //查询回复者，发送消息的人信息
+          replier = result[0];
+          ep.emit('get data');
+        })
+
         return;
       } else {
         callerr(res, 4100);
         return;
       }
-    },
-    function() {
+    }, function() {
       callerr(res, 4200);
-    })
+    });
+  });
+
+});
+app.post('/getMsgs', function(req, res) {
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    var userid = req.session.user._id;
+  }
+  var param = { "to": userid }
+  if (!req.body.getAll) {
+    param.hasRead = false;
+  }
+  mongo.query("msgs", param, function(result) {
+    res.send({ 'recode': '0000', 'msg': '查询成功', 'list': result })
+  }, function() {
+    callerr(res, 4200);
+    return;
+  })
+});
+app.post('/readMsg', function(req, res) {
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    var userid = req.session.user._id;
+  }
+  mongo.update("msgs", { "_id": ObjectId(req.body._id) }, { $set: { hasRead: true } }, function(result) {
+    if (result.result.ok) {
+      res.send({ 'recode': '0000', 'msg': '标记已读成功' });
+    }
+  }, function() {
+    callerr(res, 4200);
+    return;
+  })
+});
+app.post('/readMsgs', function(req, res) {
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    var userid = req.session.user._id;
+  }
+  mongo.updateMany("msgs", { "to": userid, hasRead: false }, { $set: { hasRead: true } }, function(result) {
+    if (result.result.ok) {
+      res.send({ 'recode': '0000', 'msg': '标记已读成功' });
+    }
+  }, function() {
+    callerr(res, 4200);
+    return;
+  })
 });
 app.post('/likeComment', function(req, res) {
   if (!req.session.user) {
@@ -777,62 +1045,87 @@ app.post('/getComment', function(req, res) {
   var query = req.body;
   var size = query.size || 5;
   var page = query.page || 1;
-  mongo.queryPartFull("comment", { postid: query.postid }, { size: size, page: page }, { time: -1 }, function(result) {
-    if (result.list.length > 0) {
-      var list = result.list;
-      var ep = new eventproxy;
-      ep.after('get data', list.length, function() {
-        res.send({ 'recode': '0000', 'msg': '查询成功', 'res': result });
-      })
-      for (var i in list) {
-        // 评论人
-        (function(num) {
-          mongo.query("users", { "_id": ObjectId(list[num].userid) }, function(r) {
-            if (r.length > 0) {
-              list[num].user = r[0];
-              ep.emit('get data');
-              return;
-            }
-          });
-        })(i);
+
+  if (req.body.floor) {
+    mongo.query('comment', { postid: req.body.postid }, function(result) {
+      page = Math.floor((result.length - req.body.floor) / size) + 1;
+      getComment();
+    })
+  } else {
+    getComment();
+  }
+
+  function getComment() {
+    mongo.queryPartFull("comment", { postid: query.postid }, { size: size, page: page }, { time: -1 }, function(result) {
+      if (result.list.length > 0) {
+        var list = result.list;
+        var ep = new eventproxy;
+        ep.after('get data', list.length, function() {
+          res.send({ 'recode': '0000', 'msg': '查询成功', 'res': result, 'page': page });
+        })
+        for (var i in list) {
+          // 评论人
+          (function(num) {
+            mongo.query("users", { "_id": ObjectId(list[num].userid) }, function(r) {
+              if (r.length > 0) {
+                list[num].user = r[0];
+                ep.emit('get data');
+                return;
+              }
+            });
+          })(i);
+        }
+        return;
+      } else {
+        res.send({ 'recode': '5005', 'msg': '未找到相关评论' });
+        return;
       }
-      return;
-    } else {
-      res.send({ 'recode': '5005', 'msg': '未找到相关评论' });
-      return;
-    }
-  })
+    })
+  }
+
 });
 
 app.post("/getReply", function(req, res) {
   var query = req.body;
   var size = query.size || 5;
   var page = query.page || 1;
-  mongo.queryPartFull("reply", { "commentid": query.commentid }, { size: size, page: page }, { time: -1 }, function(result) {
-    if (result.list.length > 0) {
-      var list = result.list;
-      var ep = new eventproxy;
-      ep.after('get data', list.length, function() {
-        res.send({ 'recode': '0000', 'msg': '查询成功', 'res': result });
-      })
-      for (var i in list) {
-        // 评论人
-        (function(num) {
-          mongo.query("users", { "_id": ObjectId(list[num].userid) }, function(r) {
-            if (r.length > 0) {
-              list[num].user = r[0];
-              ep.emit('get data');
-              return;
-            }
-          });
-        })(i);
+  if (req.body.flr) {
+    mongo.query('reply', { postid: req.body.postid }, function(result) {
+      page = Math.floor((result.length - req.body.flr) / size) + 1;
+      getReply();
+    })
+  } else {
+    getReply();
+  }
+
+  function getReply() {
+    mongo.queryPartFull("reply", { "commentid": query.commentid }, { size: size, page: page }, { time: -1 }, function(result) {
+      if (result.list.length > 0) {
+        var list = result.list;
+        var ep = new eventproxy;
+        ep.after('get data', list.length, function() {
+          res.send({ 'recode': '0000', 'msg': '查询成功', 'res': result, 'page': page });
+        })
+        for (var i in list) {
+          // 评论人
+          (function(num) {
+            mongo.query("users", { "_id": ObjectId(list[num].userid) }, function(r) {
+              if (r.length > 0) {
+                list[num].user = r[0];
+                ep.emit('get data');
+                return;
+              }
+            });
+          })(i);
+        }
+        return;
+      } else {
+        res.send({ 'recode': '5005', 'msg': '未找到相关回复' });
+        return;
       }
-      return;
-    } else {
-      res.send({ 'recode': '5005', 'msg': '未找到相关回复' });
-      return;
-    }
-  });
+    });
+  }
+
 });
 /* 评论相关 end */
 /* ---------------------------------------------- end ---------------------------------------------- */
@@ -847,13 +1140,48 @@ var chatList = []; //所有sockets，禁止多处登录
 var roomList = [{ name: '官方聊天室' }];
 var rooms = {}; //用户 list 
 var speakers = []; // chat  列表
-// var chat=io.of('chat'); 
-var chat = io;
+var msg = io.of('msg');
+msg.on('connection', function(socket) {
+  console.log('connection', socket.id);
+  setTimeout(function() {
+    socket.emit('msg info');
+  }, 100);
+  socket.on('msg info', function(data) {
+    socket.info = data;
+    socket.info.id = socket.id;
+  });
+})
+
+function sendMsg(to, mes) {
+  var allSockets = msg.sockets;
+  if (typeof to == 'string') {
+    for (var i in allSockets) {
+      if (!allSockets[i].info) return;
+      if (to == allSockets[i].info._id) {
+        allSockets[i].emit('mes', mes);
+      }
+    }
+  } else if (typeof to == 'object') {
+    for (var i in allSockets) {
+      for (var j in to) {
+        if (to[j] == allSockets[i].info._id) {
+          allSockets[i].emit('mes', mes);
+        }
+      }
+    }
+  }
+}
+
+
+
+
+
+var chat = io.of('chat');
 chat.on('connection', function(socket) {
   console.log('connection', socket.id);
 
   function initSockets() {
-    var allSockets = io.sockets.sockets;
+    var allSockets = chat.sockets;
     chatList = [];
     for (var i in allSockets) {
       let info = allSockets[i].info;
@@ -862,7 +1190,7 @@ chat.on('connection', function(socket) {
   }
 
   function getRoomUsers(room) {
-    var allSockets = io.sockets.sockets;
+    var allSockets = chat.sockets;
     var res = [];
     for (var i in allSockets) {
       if (allSockets[i].rooms[room] == room) {
@@ -876,18 +1204,18 @@ chat.on('connection', function(socket) {
     socket.info = data;
     socket.info.id = socket.id;
     initSockets();
-    io.emit('log in', { logInInfo: socket.info, chatList: chatList, roomList: roomList });
+    chat.emit('log in', { logInInfo: socket.info, chatList: chatList, roomList: roomList });
   });
   // socket.on('log in', function() {
   //   io.emit('log in', { logInInfo: socket.info, chatList: chatList, roomList: roomList });
   // })
   socket.on('chat list', function() {
     initSockets();
-    io.emit('chat list', chatList);
+    chat.emit('chat list', chatList);
   });
   socket.on('room list', function() {
     initSockets();
-    io.emit('room list', roomList);
+    chat.emit('room list', roomList);
   });
   socket.on('add room', function(addRoomName) {
     if (addRoomName == '') {
@@ -900,7 +1228,7 @@ chat.on('connection', function(socket) {
       }
     }
     roomList.push({ name: addRoomName, creator: socket.info._id });
-    io.emit('room list', roomList);
+    chat.emit('room list', roomList);
   });
   socket.on('remove room', function(removeRoomName) {
     for (var i in roomList) {
@@ -908,27 +1236,27 @@ chat.on('connection', function(socket) {
         roomList.splice(i, 1);
       }
     }
-    io.emit('room list', roomList);
+    chat.emit('room list', roomList);
   });
   socket.on('enter room', function(room) {
     socket.join(room, function() {
-      io.to(room).emit('enter room', { user: socket.info, room: room, time: new Date(), roomUsers: getRoomUsers(room) });
+      chat.to(room).emit('enter room', { user: socket.info, room: room, time: new Date(), roomUsers: getRoomUsers(room) });
     });
   });
   socket.on('leave room', function(room) {
     socket.leave(room, function() {
-      io.to(room).emit('leave room', { user: socket.info, room: room, time: new Date(), roomUsers: getRoomUsers(room) });
+      chat.to(room).emit('leave room', { user: socket.info, room: room, time: new Date(), roomUsers: getRoomUsers(room) });
     });
   });
   socket.on('chat room send', function(data) {
     var mes = data;
     mes.time = new Date();
-    io.to(data.room).emit('chat receive', mes);
+    chat.to(data.room).emit('chat receive', mes);
   });
   socket.on('chat person send', function(data) {
     var mes = data;
     mes.time = new Date();
-    var allSockets = io.sockets.sockets;
+    var allSockets = chat.sockets;
     socket.emit('chat receive self', mes);
     for (var i in allSockets) {
       if (data.to == allSockets[i].info._id) {
@@ -938,16 +1266,16 @@ chat.on('connection', function(socket) {
   });
   socket.on('disconnect', function(data) {
     initSockets();
-    io.emit('chat list', chatList);
+    chat.emit('chat list', chatList);
     console.log('disconnect');
   });
   setTimeout(function() {
-    socket.emit('chat info', chatList);
+    socket.emit('chat info');
   }, 100);
 });
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
-server.listen(3333, function() {
+server.listen(80, function() {
   var host = server.address().address;
   var port = server.address().port;
   console.log('App listening at http://%s:%s', host, port);

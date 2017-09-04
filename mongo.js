@@ -48,6 +48,22 @@ var mongo = {
       });
     });
   },
+  updateMany: function(col, whereStr, updateStr, callback, callerr) {
+    MongoClient.connect(DB_CONN_STR, function(err, db) {
+      var collection = db.collection(col);
+      console.log(whereStr)
+      console.log(updateStr)
+      collection.updateMany(whereStr, updateStr, function(err, result) {
+        if (err) {
+          console.log('Error:' + err);
+          callerr && callerr();
+          return;
+        }
+        callback(result);
+        db.close();
+      });
+    });
+  },
   query: function(col, whereStr, callback, callerr) {
     MongoClient.connect(DB_CONN_STR, function(err, db) {
       var collection = db.collection(col);
