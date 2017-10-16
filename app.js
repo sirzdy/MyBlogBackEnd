@@ -1,8 +1,14 @@
 var express = require('express');
 var app = express();
 var server = require('http').Server(app);
-var io = require('socket.io')(server);
+
 var fs = require('fs');
+
+var privateKey  = fs.readFileSync('/usr/local/https/private.pem', 'utf8');
+var certificate = fs.readFileSync('/usr/local/https/file.crt', 'utf8');
+var credentials = {key: privateKey, cert: certificate};
+var httpsServer = require('https').createServer(credentials, app);
+var io = require('socket.io')(httpsServer);
 var util = require('util');
 var path = require('path');
 var bodyParser = require('body-parser');
@@ -11,6 +17,8 @@ var session = require('express-session');
 var parseurl = require('parseurl');
 var eventproxy = require('eventproxy');
 var ObjectId = require('mongodb').ObjectId;
+
+
 /*自己的*/
 var Utils = require('./utils');
 var mongo = require('./mongo');
@@ -86,7 +94,7 @@ app.post('/verifyEmail', function(req, res) {
   }
 
   if (req.body.changePassword) { //修改
-    mongo.query("users", { 'email': address }, function(result) {
+    mongo.query("users", { "email": { $regex: "^" + address + "$", $options: "i" } }, function(result) {
       if (result.length > 0) {
         sendVercode();
       } else {
@@ -95,7 +103,7 @@ app.post('/verifyEmail', function(req, res) {
       }
     });
   } else if (req.body.signup) { //注册
-    mongo.query("users", { 'email': address }, function(result) {
+    mongo.query("users", { "email": { $regex: "^" + address + "$", $options: "i" } }, function(result) {
       if (result.length > 0) {
         console.log("此账号已经被注册");
         res.send({ 'recode': '5004', 'msg': '此账号已经被注册' });
@@ -148,11 +156,12 @@ app.post('/signup', function(req, res) {
     res.send({ 'recode': '5200', 'msg': '未获取验证码或验证码已失效' })
     return;
   }
-  if (req.session.vercode.email != email || req.session.vercode.vercode != vercode) {
+  if (!new RegExp("^" + email + "$", i).test(req.session.vercode.email) || req.session.vercode.vercode != vercode) {
     res.send({ 'recode': '5100', 'msg': '验证码不正确' });
     return;
   }
-  mongo.query("users", { 'email': email }, function(result) {
+
+  mongo.query("users", { "email": { $regex: "^" + email + "$", $options: "i" } }, function(result) {
     delete req.session.vercode;
     if (result.length > 0) {
       console.log("此账号已经被注册");
@@ -208,48 +217,56 @@ app.post('/changePassword', function(req, res) {
     res.send({ 'recode': '6014', 'msg': '密码不得为空' });
     return;
   }
-  mongo.query("users", { 'email': email }, function(result) {
-    if (result.length > 0) {
-      if (!req.session.vercode) {
-        res.send({ 'recode': '5200', 'msg': '未获取验证码或验证码已失效' })
-        return;
-      }
-      if (req.session.vercode.email != email || req.session.vercode.vercode != vercode) {
-        res.send({ 'recode': '5100', 'msg': '验证码不正确' });
-        return;
-      }
-      /* pwd end*/
-      mongo.update("pwds", { email: email }, { $set: { password: password } }, function(result) {
-        delete req.session.vercode;
-        if (!result.result.n) {
-          res.send({ 'recode': '5005', 'msg': '此账号尚未注册' });
-          return;
-        } else if (result.result.ok) {
-          res.send({ 'recode': '0000', 'msg': '修改成功' });
-          return;
-        } else {
-          callerr(res, 4100);
+  mongo.query("users", {
+      email: { $regex: "^" + email + "$", $options: "i" }
+    },
+    function(result) {
+      if (result.length > 0) {
+        if (!req.session.vercode) {
+          res.send({ 'recode': '5200', 'msg': '未获取验证码或验证码已失效' })
           return;
         }
-      }, function() {
-        callerr(res, 4200)
+        if (!new RegExp("^" + email + "$", i).test(req.session.vercode.email) || req.session.vercode.vercode != vercode) {
+          res.send({ 'recode': '5100', 'msg': '验证码不正确' });
+          return;
+        }
+        /* pwd end*/
+        mongo.update("pwds", {
+            email: { $regex: "^" + email + "$", $options: "i" }
+          }, { $set: { password: password } },
+          function(result) {
+            delete req.session.vercode;
+            if (!result.result.n) {
+              res.send({ 'recode': '5005', 'msg': '此账号尚未注册' });
+              return;
+            } else if (result.result.ok) {
+              res.send({ 'recode': '0000', 'msg': '修改成功' });
+              return;
+            } else {
+              callerr(res, 4100);
+              return;
+            }
+          },
+          function() {
+            callerr(res, 4200)
+            return;
+          });
+        /* pwd end */
+      } else {
+        console.log("此账号尚未注册");
+        res.send({ 'recode': '5005', 'msg': '此账号尚未注册' });
         return;
-      });
-      /* pwd end */
-    } else {
-      console.log("此账号尚未注册");
-      res.send({ 'recode': '5005', 'msg': '此账号尚未注册' });
-      return;
-    }
-  });
+      }
+    });
 
 });
 //登录
 app.post('/signin', function(req, res) {
-  mongo.query("pwds", { "email": req.body.email }, function(result) {
+  var param = { "email": { $regex: "^" + req.body.email + "$", $options: "i" } }
+  mongo.query("pwds", param, function(result) {
     if (result.length > 0) {
       if (result[0].password == req.body.password) {
-        mongo.query('users', { email: req.body.email }, function(result) {
+        mongo.query('users', param, function(result) {
           var user = result[0];
           req.session.user = { _id: user._id, email: user.email };
           console.log(req.connection.remoteAddress);
@@ -487,6 +504,145 @@ app.post('/update', function(req, res) {
     return;
   })
 });
+//获取草稿
+app.post('/getDrafts', function(req, res) {
+  var author;
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    author = req.session.user._id;
+  }
+  mongo.query("drafts", { 'author': author }, function(result) {
+    for (var i in result) {
+      delete result[i].content;
+    }
+    res.send({ 'recode': '0000', 'msg': '获取草稿成功', 'list': result });
+  })
+});
+//载入草稿
+app.post('/loadDraft', function(req, res) {
+  var author;
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    author = req.session.user._id;
+  }
+  mongo.query("drafts", { 'author': author, '_id': ObjectId(req.body._id) }, function(result) {
+    if (result.length > 0) {
+      res.send({ 'recode': '0000', 'msg': '获取草稿成功', 'draft': result[0] });
+      return;
+    } else {
+      res.send({ 'recode': '5005', 'msg': '未找到相关记录' });
+      return;
+    }
+  })
+});
+//清空草稿箱
+app.post('/deleteDrafts', function(req, res) {
+  var author;
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    author = req.session.user._id;
+  }
+  mongo.deleteMany("drafts", { 'author': author }, function(result) {
+    if (result.result.ok) {
+      res.send({ 'recode': '0000', 'msg': '清空草稿箱成功' });
+    }
+  }, function() {
+    callerr(res, 4200);
+    return;
+  })
+});
+//删除草稿
+app.post('/deleteDraft', function(req, res) {
+  var author;
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    author = req.session.user._id;
+  }
+  mongo.delete("drafts", { 'author': author, "_id": ObjectId(req.body._id) }, function(result) {
+    if (!result.result.n) {
+      res.send({ 'recode': '5005', 'msg': '未找到相关记录，删除失败' });
+      return;
+    } else if (result.result.ok) {
+      res.send({ 'recode': '0000', 'msg': '删除成功' });
+      return;
+    }
+  })
+});
+//保存
+app.post('/saveDraft', function(req, res) {
+  var post = {
+    'title': req.body.title,
+    'content': req.body.content,
+    'category': req.body.category,
+    'tags': req.body.tags,
+    'saveTime': new Date()
+  }
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    post.author = req.session.user._id;
+  }
+  if (req.body._id) {
+    mongo.query("drafts", { 'postid': req.body._id }, function(result) {
+      if (result.length > 0) {
+        mongo.update("drafts", { 'postid': req.body._id }, { $set: post }, function(result) {
+          if (!result.result.n) {
+            res.send({ 'recode': '5005', 'msg': '未找到相关记录， 保存失败' });
+            return;
+          } else if (result.result.ok) {
+            res.send({ 'recode': '0000', 'msg': '保存草稿成功，原草稿被覆盖' });
+            return;
+          } else {
+            callerr(res, 4100);
+            return;
+          }
+        }, function() {
+          callerr(res, 4200);
+          return;
+        })
+        return;
+      } else {
+        post.postid = req.body._id;
+        mongo.insert("drafts", post, function(result) {
+          if (result.result.ok) {
+            res.send({ 'recode': '0000', 'msg': '保存草稿成功', '_id': result.insertedIds[0] });
+            return;
+          } else {
+            callerr(res, 4100);
+            return;
+          }
+        }, function() {
+          callerr(res, 4200);
+          return;
+        });
+        return;
+      }
+    })
+  } else {
+    mongo.insert("drafts", post, function(result) {
+      if (result.result.ok) {
+        console.log("保存成功");
+        res.send({ 'recode': '0000', 'msg': '保存新草稿成功', '_id': result.insertedIds[0] });
+        return;
+      } else {
+        callerr(res, 4100);
+        return;
+      }
+    }, function() {
+      callerr(res, 4200);
+      return;
+    });
+  }
+});
 //删除
 app.post('/delete', function(req, res) {
   mongo.delete("posts", { "_id": ObjectId(req.body._id) }, function(result) {
@@ -666,15 +822,15 @@ app.post('/search', function(req, res) {
 });
 
 //保存到本地
-app.post('/save', function(req, res) {
+app.post('/download', function(req, res) {
   var post = {
     'title': req.body.title,
     'content': req.body.content,
     'category': req.body.category,
     'tags': req.body.tags
   };
-  save.save(post, function(fileName) {
-    res.send({ 'recode': '0000', 'msg': '上传成功', 'path': fileName });
+  save.download(post, function(fileName) {
+    res.send({ 'recode': '0000', 'msg': '下载成功', 'path': fileName });
   }, function() {
     // res.end(404);
     callerr(res, 4500);
@@ -1279,4 +1435,7 @@ server.listen(80, function() {
   var host = server.address().address;
   var port = server.address().port;
   console.log('App listening at http://%s:%s', host, port);
+});
+httpsServer.listen(443, function() {
+  console.log('https');
 });

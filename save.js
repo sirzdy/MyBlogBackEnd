@@ -4,7 +4,7 @@ const staticPath = 'files/';
 const savePath = 'save/';
 const avatarPath = 'avatar/';
 var save = {
-  save: function(param, callback, callerr) {
+  download: function(param, callback, callerr) {
     var title = param.title || '';
     var category = param.category || '';
     var tags = param.tags || '';
