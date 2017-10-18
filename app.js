@@ -4,10 +4,11 @@ var server = require('http').Server(app);
 
 var fs = require('fs');
 
-var privateKey  = fs.readFileSync('/etc/nginx/zhangdanyang.com.key', 'utf8');
-var certificate = fs.readFileSync('/etc/nginx/zhangdanyang.com.crt', 'utf8');
+var privateKey  = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
+var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = require('https').createServer(credentials, app);
+
 var io = require('socket.io')(httpsServer);
 var util = require('util');
 var path = require('path');
@@ -1431,11 +1432,13 @@ chat.on('connection', function(socket) {
 });
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
-server.listen(80, function() {
-  var host = server.address().address;
-  var port = server.address().port;
-  console.log('App listening at http://%s:%s', host, port);
-});
+// server.listen(80, function() {
+//   var host = server.address().address;
+//   var port = server.address().port;
+//   console.log('App listening at http://%s:%s', host, port);
+// });
 httpsServer.listen(443, function() {
-  console.log('https');
+  var host = httpsServer.address().address;
+  var port = httpsServer.address().port;
+  console.log('App listening at http://%s:%s', host, port);
 });
