@@ -4,8 +4,8 @@ var server = require('http').Server(app);
 
 var fs = require('fs');
 
-var privateKey  = fs.readFileSync('/usr/nginx/zhangdanyang.com.key', 'utf8');
-var certificate = fs.readFileSync('/usr/nginx/zhangdanyang.com.crt', 'utf8');
+var privateKey  = fs.readFileSync('/etc/nginx/zhangdanyang.com.key', 'utf8');
+var certificate = fs.readFileSync('/etc/nginx/zhangdanyang.com.crt', 'utf8');
 var credentials = {key: privateKey, cert: certificate};
 var httpsServer = require('https').createServer(credentials, app);
 var io = require('socket.io')(httpsServer);
