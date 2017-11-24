@@ -840,7 +840,30 @@ app.post('/download', function(req, res) {
     return;
   });
 });
-
+//保存我的全部文章到本地
+app.post('/downloadMyPosts', function(req, res) {
+  var param = {};
+  if (!req.session.user) {
+    callerr(res, 5001);
+    return;
+  } else {
+    param.author = req.session.user._id
+  }
+  mongo.getMyPosts(param, function(result) {
+    if (result.length > 0) {
+      save.downloadMyPosts(result, function(fileName) {
+        res.send({ 'recode': '0000', 'msg': '下载成功', 'path': fileName });
+      }, function() {
+        callerr(res, 4500);
+        return;
+      });
+      return;
+    } else {
+      res.send({ 'recode': '5005', 'msg': '抱歉，没有找到您的文章' });
+      return;
+    }
+  });
+});
 //文章内容
 app.post('/getPost', function(req, res) {
   var post = { "_id": ObjectId(req.body._id) }

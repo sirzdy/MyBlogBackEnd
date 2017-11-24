@@ -1,5 +1,5 @@
 var Utils = require('./utils')
-
+var ObjectId = require('mongodb').ObjectId;
 var MongoClient = require('mongodb').MongoClient;
 var assert = require('assert');
 var DB_CONN_STR = 'mongodb://localhost:27017/MySite';
@@ -139,6 +139,33 @@ var mongo = {
           callback({ totalSize: totalSize, list: result });
           db.close();
         });
+      });
+    });
+  },
+  getMyPosts: function(whereStr, callback, callerr) {
+    MongoClient.connect(DB_CONN_STR, function(err, db) {
+      var collection = db.collection("posts");
+      collection.find(whereStr).toArray(function(err, result) {
+        if (err) {
+          console.log('Error:' + err);
+          callerr && callerr();
+          return;
+        }
+        callback(result);
+        db.close();
+      });
+    });
+  },
+  queryCategoryName: function(id) {
+    MongoClient.connect(DB_CONN_STR, function(err, db) {
+      var collection = db.collection("categories");
+      collection.find({ "_id": ObjectId(id) }).toArray(function(err, result) {
+        if (err) {
+          console.log('Error:' + err);
+          return '未分类';
+        }
+        return result[0].name;
+        db.close();
       });
     });
   }
