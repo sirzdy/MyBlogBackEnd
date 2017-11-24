@@ -1,15 +1,15 @@
 var express = require('express');
 var app = express();
+var fs = require('fs');
 var server = require('http').Server(app);
 
-var fs = require('fs');
-
-var privateKey  = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
+var privateKey = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
 var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
-var credentials = {key: privateKey, cert: certificate};
+var credentials = { key: privateKey, cert: certificate };
 var httpsServer = require('https').createServer(credentials, app);
 
-var io = require('socket.io')(httpsServer);
+var io = require('socket.io')(server);
+// var io = require('socket.io')(httpsServer);
 var util = require('util');
 var path = require('path');
 var bodyParser = require('body-parser');
@@ -21,10 +21,10 @@ var ObjectId = require('mongodb').ObjectId;
 
 
 /*自己的*/
-var Utils = require('./utils');
-var mongo = require('./mongo');
-var mail = require('./mail');
-var save = require('./save');
+var Utils = require('./core/utils');
+var mongo = require('./core/mongo');
+var mail = require('./core/mail');
+var save = require('./core/save');
 
 app.set('trust proxy', true);
 app.use(session({
@@ -157,11 +157,11 @@ app.post('/signup', function(req, res) {
     res.send({ 'recode': '5200', 'msg': '未获取验证码或验证码已失效' })
     return;
   }
-  if (!new RegExp("^" + email + "$", i).test(req.session.vercode.email) || req.session.vercode.vercode != vercode) {
+  if (!new RegExp("^" + email + "$", 'i').test(req.session.vercode.email) || req.session.vercode.vercode != vercode) {
     res.send({ 'recode': '5100', 'msg': '验证码不正确' });
     return;
   }
-
+  password = Utils.digest(Utils.decrypt(password));
   mongo.query("users", { "email": { $regex: "^" + email + "$", $options: "i" } }, function(result) {
     delete req.session.vercode;
     if (result.length > 0) {
@@ -218,6 +218,7 @@ app.post('/changePassword', function(req, res) {
     res.send({ 'recode': '6014', 'msg': '密码不得为空' });
     return;
   }
+  password = Utils.digest(Utils.decrypt(password));
   mongo.query("users", {
       email: { $regex: "^" + email + "$", $options: "i" }
     },
@@ -227,7 +228,7 @@ app.post('/changePassword', function(req, res) {
           res.send({ 'recode': '5200', 'msg': '未获取验证码或验证码已失效' })
           return;
         }
-        if (!new RegExp("^" + email + "$", i).test(req.session.vercode.email) || req.session.vercode.vercode != vercode) {
+        if (!new RegExp("^" + email + "$", 'i').test(req.session.vercode.email) || req.session.vercode.vercode != vercode) {
           res.send({ 'recode': '5100', 'msg': '验证码不正确' });
           return;
         }
@@ -264,9 +265,10 @@ app.post('/changePassword', function(req, res) {
 //登录
 app.post('/signin', function(req, res) {
   var param = { "email": { $regex: "^" + req.body.email + "$", $options: "i" } }
+  var password = Utils.digest(Utils.decrypt(req.body.password));
   mongo.query("pwds", param, function(result) {
     if (result.length > 0) {
-      if (result[0].password == req.body.password) {
+      if (result[0].password == password) {
         mongo.query('users', param, function(result) {
           var user = result[0];
           req.session.user = { _id: user._id, email: user.email };
@@ -1432,13 +1434,13 @@ chat.on('connection', function(socket) {
 });
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
-// server.listen(80, function() {
-//   var host = server.address().address;
-//   var port = server.address().port;
-//   console.log('App listening at http://%s:%s', host, port);
-// });
-httpsServer.listen(443, function() {
-  var host = httpsServer.address().address;
-  var port = httpsServer.address().port;
+server.listen(80, function() {
+  var host = server.address().address;
+  var port = server.address().port;
   console.log('App listening at http://%s:%s', host, port);
 });
+// httpsServer.listen(443, function() {
+//   var host = httpsServer.address().address;
+//   var port = httpsServer.address().port;
+//   console.log('App listening at http://%s:%s', host, port);
+// });

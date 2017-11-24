@@ -1,6 +1,43 @@
-<!DOCTYPE html><html><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name=keywords content=张丹阳,zhangdanyang,张sir,blog,博客,program,编程,mainpage,主页><meta name=description content="张丹阳的个人博客——既然选择了远方，便只顾风雨兼程。ZhangDanyang's Personal Blog"><meta name=Robots content=All><meta name=author content=张丹阳,boxuerixin@hotmail.com><meta name=Copyright content="本页版权归张丹阳所有。All Rights Reserved"><title>张丹阳</title><style>input {
-    		outline: none;
-    	}
-    	button {
-    		outline: none;
-    	}</style><link href=/static/css/app.d76c9cc31a3b3101752076229f977578.css rel=stylesheet></head><body><div id=app></div><script type=text/javascript src=/static/js/manifest.a5df580fbead2a4ca35a.js></script><script type=text/javascript src=/static/js/vendor.815694fcca76da61095d.js></script><script type=text/javascript src=/static/js/app.389ce5f0c0796d7e841c.js></script></body></html>
+<!DOCTYPE html><html><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name=keywords content=张丹阳,zhangdanyang,张sir,blog,博客,program,编程,mainpage,主页><meta name=description content="张丹阳的个人博客——既然选择了远方，便只顾风雨兼程。ZhangDanyang's Personal Blog"><meta name=Robots content=All><meta name=author content=张丹阳,boxuerixin@hotmail.com><meta name=Copyright content="本页版权归张丹阳所有。All Rights Reserved"><script src=../static/javascript/jsencrypt.min.js></script><title>张丹阳</title><style>input {
+    outline: none;
+  }
+  
+  button {
+    outline: none;
+  }
+  
+  #music {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border-top-right-radius: 20px;
+    bottom: 0;
+    left: 0;
+    background: #f8f8f8;
+    text-indent: 4px;
+    color: #aaa;
+  }
+  
+  #music-iframe {
+    position: absolute;
+    bottom: 0;
+    left: 20px;
+    display: none;
+  }</style><link href=/static/css/app.d76c9cc31a3b3101752076229f977578.css rel=stylesheet></head><body id=mydiv><div id=app></div><div id=music onselect="return false;" onselectstart="return false;"><div id=music-content>♪</div><iframe id=music-iframe frameborder=no border=0 marginwidth=0 marginheight=0 width=330 height=320 src="//music.163.com/outchain/player?type=4&amp;id=84006&amp;auto=0&amp;height=430">载入中,请稍后...</iframe></div><script>var music = document.getElementById("music");
+  var musicIframe = document.getElementById("music-iframe");
+  var musicContent = document.getElementById("music-content");
+  music.onclick = function() {
+    if (musicIframe.src == "") {
+      musicContent.innerText = "..."
+      musicIframe.src = "//music.163.com/outchain/player?type=4&amp;id=84006&amp;auto=0&amp;height=430";
+      musicIframe.onload = function() {
+        console.log('loading');
+        musicContent.innerText = "♪"
+      }
+    }
+    if (musicIframe.style.display == "none") {
+      musicIframe.style.display = "block";
+    } else {
+      musicIframe.style.display = "none";
+    }
+  }</script><script type=text/javascript src=/static/js/manifest.fd52f7422439ee01fc84.js></script><script type=text/javascript src=/static/js/vendor.9b00926a84f606ef5454.js></script><script type=text/javascript src=/static/js/app.9c7716483345519baf35.js></script></body></html>
