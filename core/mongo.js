@@ -2,7 +2,7 @@ var Utils = require('./utils')
 
 var MongoClient = require('mongodb').MongoClient;
 var assert = require('assert');
-var DB_CONN_STR = 'mongodb://localhost:27017/runoob';
+var DB_CONN_STR = 'mongodb://localhost:27017/MySite';
 var mongo = {
   insert: function(col, data, callback, callerr) {
     MongoClient.connect(DB_CONN_STR, function(err, db) {
