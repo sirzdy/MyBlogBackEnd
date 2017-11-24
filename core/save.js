@@ -1,6 +1,6 @@
 var fs = require('fs');
 var multiparty = require('multiparty');
-const staticPath = __dirname + 'files/';
+const staticPath = __dirname + '/files/';
 const savePath = 'save/';
 const avatarPath = 'avatar/';
 var save = {
