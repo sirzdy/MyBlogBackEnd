@@ -1,6 +1,6 @@
 var fs = require('fs');
 var multiparty = require('multiparty');
-const staticPath = __dirname + '/files/';
+const staticPath = process.cwd() + '/files/';
 const savePath = 'save/';
 const avatarPath = 'avatar/';
 var save = {
@@ -11,6 +11,8 @@ var save = {
     var content = param.content || '';
     var filename = (title || 'NOTITLE') + '(' + Date.now() + ')' + '.md';
     var con = "---\r\ntitle: " + title + "\r\ncategory: " + category + "\r\ntags: " + tags + "\r\n---\r\n" + content;
+    console.log(staticPath + savePath + filename)
+    console.log(con)
     fs.writeFile(staticPath + savePath + filename, con, (err) => {
       if (err) {
         callerr && callerr();
