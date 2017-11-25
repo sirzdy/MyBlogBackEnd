@@ -10,12 +10,25 @@
     position: fixed;
     width: 20px;
     height: 20px;
-    border-top-right-radius: 20px;
+    border-top-right-radius: 15px;
     bottom: 0;
     left: 0;
-    background: #f8f8f8;
+    background: #1f5498;
     text-indent: 4px;
-    color: #aaa;
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+    /*text-align: center;*/
+    /*line-height: 30px;*/
+    cursor: pointer;
+  }
+  #music:hover{
+    background: none;
+  }
+  #music:hover>#music-content {
+    color: #c74740;
+    font-weight: 900;
+    transform: translateX(5px) translateY(-5px) scale(1.5);
   }
   
   #music-iframe {
@@ -23,21 +36,24 @@
     bottom: 0;
     left: 20px;
     display: none;
-  }</style><link href=/static/css/app.d76c9cc31a3b3101752076229f977578.css rel=stylesheet></head><body id=mydiv><div id=app></div><div id=music onselect="return false;" onselectstart="return false;"><div id=music-content>♪</div><iframe id=music-iframe frameborder=no border=0 marginwidth=0 marginheight=0 width=330 height=320 src="//music.163.com/outchain/player?type=4&amp;id=84006&amp;auto=0&amp;height=430">载入中,请稍后...</iframe></div><script>var music = document.getElementById("music");
+  }</style><link href=/static/css/app.d76c9cc31a3b3101752076229f977578.css rel=stylesheet></head><body id=mydiv><div id=app></div><div tabindex=-1 id=music onselect="return false;" onselectstart="return false;"><div id=music-content>♪</div><iframe id=music-iframe frameborder=no border=0 marginwidth=0 marginheight=0 width=330 height=320 src="//music.163.com/outchain/player?type=4&amp;id=84006&amp;auto=0&amp;height=430">载入中,请稍后...</iframe></div><script>var music = document.getElementById("music");
   var musicIframe = document.getElementById("music-iframe");
   var musicContent = document.getElementById("music-content");
   music.onclick = function() {
-    if (musicIframe.src == "") {
-      musicContent.innerText = "..."
-      musicIframe.src = "//music.163.com/outchain/player?type=4&amp;id=84006&amp;auto=0&amp;height=430";
-      musicIframe.onload = function() {
-        console.log('loading');
-        musicContent.innerText = "♪"
-      }
-    }
+    // if (musicIframe.src == "") {
+    //   musicContent.innerText = "..."
+    //   musicIframe.src = "//music.163.com/outchain/player?type=4&amp;id=84006&amp;auto=0&amp;height=430";
+    //   musicIframe.onload = function() {
+    //     console.log('loading');
+    //     musicContent.innerText = "♪"
+    //   }
+    // }
     if (musicIframe.style.display == "none") {
       musicIframe.style.display = "block";
     } else {
       musicIframe.style.display = "none";
     }
-  }</script><script type=text/javascript src=/static/js/manifest.fee93a03469a66087d0e.js></script><script type=text/javascript src=/static/js/vendor.9b00926a84f606ef5454.js></script><script type=text/javascript src=/static/js/app.211cf98cef17253882de.js></script></body></html>
+  }
+  music.onblur = function() {
+    musicIframe.style.display = "none";
+  }</script><script type=text/javascript src=/static/js/manifest.0f017afd439121f04ab6.js></script><script type=text/javascript src=/static/js/vendor.815694fcca76da61095d.js></script><script type=text/javascript src=/static/js/app.e320bf27c0a82828d5e2.js></script></body></html>
