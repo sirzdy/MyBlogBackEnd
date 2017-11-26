@@ -1,39 +1,4 @@
-[{
-  "name": "游戏",
-  "description": "Games",
-  "items": [{
-    "name": "扫雷",
-    "description": "H5",
-    "link": "MineSweeper/",
-    "code": "https://github.com/sirzdy/MineSweeper"
-  }, {
-    "name": "俄罗斯方块",
-    "description": "H5",
-    "link": "Tetris/",
-    "code": "https://github.com/sirzdy/MineSweeper"
-  }, {
-    "name": "2048",
-    "description": "H5",
-    "link": "2048",
-    "code": "https://github.com/sirzdy/2048"
-  }, {
-    "name": "拼图",
-    "description": "H5",
-    "link": "Puzzle",
-    "code": "https://github.com/sirzdy/Puzzle"
-  }]
-}, {
-  "name": "工具",
-  "description": "Tools",
-  "items": [{
-    "name": "头像裁剪",
-    "description": "H5",
-    "link": "AvatarCrop",
-    "code": "https://github.com/sirzdy/AvatarCropDemo"
-  }, {
-    "name": "遗愿微清单",
-    "description": "微信小程序",
-    "link": "",
-    "code": "https://github.com/sirzdy/theBucketList"
-  }]
-}]
+[
+
+]
+
