@@ -1503,7 +1503,7 @@ chat.on('connection', function(socket) {
 // });
 
 // 使用 443 接口，通过nginx转发80到443
-httpsServer.listen(8888, function() {
+httpsServer.listen(443, function() {
   var host = httpsServer.address().address;
   var port = httpsServer.address().port;
   console.log('App listening at http://%s:%s', host, port);
