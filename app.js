@@ -1481,7 +1481,7 @@ var server = require('http').createServer(function(req, res) {
       proxy.web(req, res, { target: 'https://zhangdanyang.com' });
       break;
     case 'www.zhangdanyang.com':
-      proxy.web(req, res, { target: 'https://www.baidu.com' });
+      proxy.web(req, res, { target: 'https://www.zhangdanyang.com' });
       break;
     // case 'localhost':
     //   proxy.web(req, res, { target: 'https://localhost.com' });
