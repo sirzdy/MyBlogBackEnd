@@ -37,12 +37,12 @@ var save = require('./core/save');
 //   res.end('Something went wrong. And we are reporting a custom error message.');
 // });
 
-app.get('*',function(req,res,next){
-  console.log(req.headers['x-forwarded-proto']);
-  if(req.headers['x-forwarded-proto']!='https')
-    res.redirect('https://zhangdanyang.com'+req.url)
-  else
-    next() /* Continue to other routes if we're not redirecting */
+app.get('*', function(req, res, next) {
+  console.log(req.headers);
+  if (req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(['https://', req.get('Host'), req.url].join(''));
+  }
+  return next();
 })
 
 app.set('trust proxy', true);
