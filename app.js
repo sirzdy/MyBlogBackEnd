@@ -1478,10 +1478,10 @@ var server = require('http').createServer(function(req, res) {
   console.log("client ip:" + ip + ", host:" + host);
   switch (host) {
     case 'zhangdanyang.com':
-      proxy.web(req, res, { target: 'https://zhangdanyang.com' });
+      proxy.web(req, res, { target: 'https://zhangdanyang.com:443' });
       break;
     case 'www.zhangdanyang.com':
-      proxy.web(req, res, { target: 'https://zhangdanyang.com' });
+      proxy.web(req, res, { target: 'https://zhangdanyang.com:443' });
       break;
     // case 'localhost':
     //   proxy.web(req, res, { target: 'https://localhost.com' });
