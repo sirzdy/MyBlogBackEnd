@@ -1,7 +1,9 @@
 var express = require('express');
 var app = express();
 var fs = require('fs');
-var server = require('http').Server(app);
+
+var httpProxy = require('http-proxy');
+var proxy = httpProxy.createProxyServer({});
 
 var privateKey = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
 var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
@@ -25,6 +27,16 @@ var Utils = require('./core/utils');
 var mongo = require('./core/mongo');
 var mail = require('./core/mail');
 var save = require('./core/save');
+
+
+// 捕获异常  
+proxy.on('error', function(err, req, res) {
+  res.writeHead(500, {
+    'Content-Type': 'text/plain'
+  });
+  res.end('Something went wrong. And we are reporting a custom error message.');
+});
+
 
 app.set('trust proxy', true);
 app.use(session({
@@ -1458,11 +1470,38 @@ chat.on('connection', function(socket) {
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
 // 使用 80 接口
-// server.listen(80, function() {
-//   var host = server.address().address;
-//   var port = server.address().port;
-//   console.log('App listening at http://%s:%s', host, port);
-// });
+// var server = require('http').createServer(app);
+var server = require('http').createServer(function(req, res) {
+  // 在这里可以自定义你的路由分发  
+  var host = req.headers.host,
+    ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  console.log("client ip:" + ip + ", host:" + host);
+  switch (host) {
+    case 'zhangdanyang.com':
+      proxy.web(req, res, { target: 'https://zhangdanyang.com' });
+      break;
+    case 'www.zhangdanyang.com':
+      proxy.web(req, res, { target: 'https://zhangdanyang.com' });
+      break;
+    // case 'localhost':
+    //   proxy.web(req, res, { target: 'https://localhost.com' });
+    //   break;
+    // case '127.0.0.1':
+    //   proxy.web(req, res, { target: 'https://localhost.com' });
+    //   break;
+    default:
+      res.writeHead(200, {
+        'Content-Type': 'text/plain'
+      });
+      res.end('Welcome to my server!');
+  }
+});
+server.listen(80, function() {
+  var host = server.address().address;
+  var port = server.address().port;
+  console.log('App listening at http://%s:%s', host, port);
+});
+
 // 使用 443 接口，通过nginx转发80到443
 httpsServer.listen(443, function() {
   var host = httpsServer.address().address;
