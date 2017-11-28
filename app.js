@@ -1496,14 +1496,14 @@ chat.on('connection', function(socket) {
 //   }
 // });
 
-server.listen(80, function() {
-  var host = server.address().address;
-  var port = server.address().port;
-  console.log('App listening at http://%s:%s', host, port);
-});
+// server.listen(80, function() {
+//   var host = server.address().address;
+//   var port = server.address().port;
+//   console.log('App listening at http://%s:%s', host, port);
+// });
 
 // 使用 443 接口，通过nginx转发80到443
-httpsServer.listen(443, function() {
+httpsServer.listen(8888, function() {
   var host = httpsServer.address().address;
   var port = httpsServer.address().port;
   console.log('App listening at http://%s:%s', host, port);
