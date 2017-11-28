@@ -1469,7 +1469,6 @@ chat.on('connection', function(socket) {
 });
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
-// 使用 80 接口
 // var server = require('http').createServer(function(req, res) {
 //   // 在这里可以自定义你的路由分发  
 //   var host = req.headers.host,
@@ -1496,11 +1495,12 @@ chat.on('connection', function(socket) {
 //   }
 // });
 
-// server.listen(80, function() {
-//   var host = server.address().address;
-//   var port = server.address().port;
-//   console.log('App listening at http://%s:%s', host, port);
-// });
+// 使用 80 接口
+server.listen(80, function() {
+  var host = server.address().address;
+  var port = server.address().port;
+  console.log('App listening at http://%s:%s', host, port);
+});
 
 // 使用 443 接口，通过nginx转发80到443
 httpsServer.listen(443, function() {
