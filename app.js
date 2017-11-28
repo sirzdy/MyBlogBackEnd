@@ -1477,9 +1477,9 @@ var server = require('http').createServer(function(req, res) {
     ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
   console.log("client ip:" + ip + ", host:" + host);
   switch (host) {
-    case 'zhangdanyang.com':
-      proxy.web(req, res, { target: 'https://zhangdanyang.com' });
-      break;
+    // case 'zhangdanyang.com':
+    //   proxy.web(req, res, { target: 'https://zhangdanyang.com' });
+    //   break;
     case 'www.zhangdanyang.com':
       proxy.web(req, res, { target: 'https://zhangdanyang.com' });
       break;
