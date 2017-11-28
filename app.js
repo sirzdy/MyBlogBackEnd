@@ -1,9 +1,10 @@
 var express = require('express');
 var app = express();
 var fs = require('fs');
+var server = require('http').createServer(app);
 
-var httpProxy = require('http-proxy');
-var proxy = httpProxy.createProxyServer({});
+// var httpProxy = require('http-proxy');
+// var proxy = httpProxy.createProxyServer({});
 
 var privateKey = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
 var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
@@ -1469,32 +1470,31 @@ chat.on('connection', function(socket) {
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
 // 使用 80 接口
-// var server = require('http').createServer(app);
-var server = require('http').createServer(function(req, res) {
-  // 在这里可以自定义你的路由分发  
-  var host = req.headers.host,
-    ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-  console.log("client ip:" + ip + ", host:" + host);
-  switch (host) {
-    case 'zhangdanyang.com':
-      proxy.web(req, res, { target: 'http://zhangdanyang.com:443' });
-      break;
-    case 'www.zhangdanyang.com':
-      proxy.web(req, res, { target: 'http://wwww.zhangdanyang.com:443' });
-      break;
-    // case 'localhost':
-    //   proxy.web(req, res, { target: 'https://localhost.com' });
-    //   break;
-    // case '127.0.0.1':
-    //   proxy.web(req, res, { target: 'https://localhost.com' });
-    //   break;
-    default:
-      res.writeHead(200, {
-        'Content-Type': 'text/plain'
-      });
-      res.end('Welcome to my server!');
-  }
-});
+// var server = require('http').createServer(function(req, res) {
+//   // 在这里可以自定义你的路由分发  
+//   var host = req.headers.host,
+//     ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+//   console.log("client ip:" + ip + ", host:" + host);
+//   switch (host) {
+//     case 'zhangdanyang.com':
+//       proxy.web(req, res, { target: 'http://zhangdanyang.com:443' });
+//       break;
+//     case 'www.zhangdanyang.com':
+//       proxy.web(req, res, { target: 'http://wwww.zhangdanyang.com:443' });
+//       break;
+//     // case 'localhost':
+//     //   proxy.web(req, res, { target: 'https://localhost.com' });
+//     //   break;
+//     // case '127.0.0.1':
+//     //   proxy.web(req, res, { target: 'https://localhost.com' });
+//     //   break;
+//     default:
+//       res.writeHead(200, {
+//         'Content-Type': 'text/plain'
+//       });
+//       res.end('Welcome to my server!');
+//   }
+// });
 
 server.listen(80, function() {
   var host = server.address().address;
