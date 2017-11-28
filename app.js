@@ -8,8 +8,8 @@ var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
 var credentials = { key: privateKey, cert: certificate };
 var httpsServer = require('https').createServer(credentials, app);
 
-var io = require('socket.io')(server);
-// var io = require('socket.io')(httpsServer);
+// var io = require('socket.io')(server);
+var io = require('socket.io')(httpsServer);
 var util = require('util');
 var path = require('path');
 var bodyParser = require('body-parser');
@@ -1457,13 +1457,15 @@ chat.on('connection', function(socket) {
 });
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
 
-server.listen(80, function() {
-  var host = server.address().address;
-  var port = server.address().port;
-  console.log('App listening at http://%s:%s', host, port);
-});
-// httpsServer.listen(443, function() {
-//   var host = httpsServer.address().address;
-//   var port = httpsServer.address().port;
+// 使用 80 接口
+// server.listen(80, function() {
+//   var host = server.address().address;
+//   var port = server.address().port;
 //   console.log('App listening at http://%s:%s', host, port);
 // });
+// 使用 443 接口，通过nginx转发80到443
+httpsServer.listen(443, function() {
+  var host = httpsServer.address().address;
+  var port = httpsServer.address().port;
+  console.log('App listening at http://%s:%s', host, port);
+});
