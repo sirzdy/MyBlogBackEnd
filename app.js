@@ -2,8 +2,8 @@ var express = require('express');
 var app = express();
 var fs = require('fs');
 
-// var httpProxy = require('http-proxy');
-// var proxy = httpProxy.createProxyServer({});
+var httpProxy = require('http-proxy');
+var proxy = httpProxy.createProxyServer({});
 
 var privateKey = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
 var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
