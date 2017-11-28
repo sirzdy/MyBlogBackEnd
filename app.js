@@ -1490,6 +1490,7 @@ var server = require('http').createServer(function(req, res) {
     //   proxy.web(req, res, { target: 'https://localhost.com' });
     //   break;
     default:
+    console.log("...");
       res.writeHead(200, {
         'Content-Type': 'text/plain'
       });
