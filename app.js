@@ -38,7 +38,7 @@ var save = require('./core/save');
 // });
 
 app.get('*', function(req, res, next) {
-  console.log(req.headers);
+  console.log(req.header('x-forwarded-proto'));
   if (req.headers['x-forwarded-proto'] !== 'https') {
     return res.redirect(['https://', req.get('Host'), req.url].join(''));
   }
