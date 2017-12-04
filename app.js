@@ -2,9 +2,7 @@ var express = require('express');
 var app = express();
 var fs = require('fs');
 var server = require('http').createServer(app);
-
-// var httpProxy = require('http-proxy');
-// var proxy = httpProxy.createProxyServer({});
+var qiniu = require('qiniu');
 
 var privateKey = fs.readFileSync('/etc/https/zhangdanyang.com.key', 'utf8');
 var certificate = fs.readFileSync('/etc/https/zhangdanyang.com.crt', 'utf8');
@@ -28,15 +26,7 @@ var Utils = require('./core/utils');
 var mongo = require('./core/mongo');
 var mail = require('./core/mail');
 var save = require('./core/save');
-
-
-// 捕获异常  
-// proxy.on('error', function(err, req, res) {
-//   res.writeHead(500, {
-//     'Content-Type': 'text/plain'
-//   });
-//   res.end('Something went wrong. And we are reporting a custom error message.');
-// });
+var qiniuConfig = require('./core/qiniu-config.js');
 
 app.set('trust proxy', true);
 app.use(session({
@@ -45,12 +35,74 @@ app.use(session({
   saveUninitialized: true
     // cookie: { secure: true }
 }))
+app.use('/bower_components', express.static(path.join(__dirname, 'bower_components')));
 app.use(express.static(path.join(__dirname, 'files')));
 app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, 'works')));
+
 app.use(bodyParser.json()); // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
 
+/* 七牛上传图片 start */
+console.log(qiniuConfig)
 
+qiniu.conf.ACCESS_KEY = qiniuConfig.ACCESS_KEY;
+qiniu.conf.SECRET_KEY = qiniuConfig.SECRET_KEY;
+var uptoken = new qiniu.rs.PutPolicy(qiniuConfig.Bucket_Name);
+app.get('/uptoken', function(req, res, next) {
+  var token = uptoken.token();
+  res.header("Cache-Control", "max-age=0, private, must-revalidate");
+  res.header("Pragma", "no-cache");
+  res.header("Expires", 0);
+  if (token) {
+    res.json({
+      uptoken: token
+    });
+  }
+});
+
+app.post('/downtoken', function(req, res) {
+
+  var key = req.body.key,
+    domain = req.body.domain;
+
+  //trim 'http://'
+  if (domain.indexOf('http://') != -1) {
+    domain = domain.substr(7);
+  }
+  //trim 'https://'
+  if (domain.indexOf('https://') != -1) {
+    domain = domain.substr(8);
+  }
+  //trim '/' if the domain's last char is '/'
+  if (domain.lastIndexOf('/') === domain.length - 1) {
+    domain = domain.substr(0, domain.length - 1);
+  }
+
+  var baseUrl = qiniu.rs.makeBaseUrl(domain, key);
+  var deadline = 3600 + Math.floor(Date.now() / 1000);
+
+  baseUrl += '?e=' + deadline;
+  var signature = qiniu.util.hmacSha1(baseUrl, qiniuConfig.SECRET_KEY);
+  var encodedSign = qiniu.util.base64ToUrlSafe(signature);
+  var downloadToken = qiniuConfig.ACCESS_KEY + ':' + encodedSign;
+
+  if (downloadToken) {
+    res.json({
+      downtoken: downloadToken,
+      url: baseUrl + '&token=' + downloadToken
+    })
+  }
+});
+
+
+app.get('/upload', function(req, res) {
+  res.render('index.html', {
+    domain: qiniuConfig.Domain,
+    uptoken_url: qiniuConfig.UptokenUrl
+  });
+});
+/* 七牛上传图片 end */
 
 /* ---------------------------------------------- start ---------------------------------------------- */
 //系统异常
@@ -1468,32 +1520,6 @@ chat.on('connection', function(socket) {
   }, 100);
 });
 // /* ---------------------------------------------- socket io end ---------------------------------------------- */
-
-// var server = require('http').createServer(function(req, res) {
-//   // 在这里可以自定义你的路由分发  
-//   var host = req.headers.host,
-//     ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-//   console.log("client ip:" + ip + ", host:" + host);
-//   switch (host) {
-//     case 'zhangdanyang.com':
-//       proxy.web(req, res, { target: 'http://zhangdanyang.com:443' });
-//       break;
-//     case 'www.zhangdanyang.com':
-//       proxy.web(req, res, { target: 'http://wwww.zhangdanyang.com:443' });
-//       break;
-//     // case 'localhost':
-//     //   proxy.web(req, res, { target: 'https://localhost.com' });
-//     //   break;
-//     // case '127.0.0.1':
-//     //   proxy.web(req, res, { target: 'https://localhost.com' });
-//     //   break;
-//     default:
-//       res.writeHead(200, {
-//         'Content-Type': 'text/plain'
-//       });
-//       res.end('Welcome to my server!');
-//   }
-// });
 
 // 使用 80 接口
 server.listen(80, function() {
